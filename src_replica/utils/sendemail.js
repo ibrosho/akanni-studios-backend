@@ -37,7 +37,7 @@ const sendEmail = async ({ to, subject, text, html }) => {
         headers: {
           'Content-Type': 'application/json',
           'api-key': process.env.BREVO_API_KEY,
-          'Content-Length': data.length,
+          'Content-Length': Buffer.byteLength(data),
         },
       };
 
