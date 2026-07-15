@@ -1,10 +1,10 @@
 const nodemailer = require('nodemailer');
+const https = require('https');
 
 /**
  * @util sendEmail
- * @description Reusable Nodemailer transporter for Akanni Studios.
- * All SMTP credentials are sourced exclusively from environment variables.
- * Eliminates the security anti-pattern of hardcoded credentials in controllers.
+ * @description Reusable email dispatcher. Supports Resend HTTP API (for Render production)
+ * and Nodemailer SMTP (for localhost/fallback).
  *
  * @param {Object} options
  * @param {string} options.to      - Recipient email address.
@@ -12,9 +12,51 @@ const nodemailer = require('nodemailer');
  * @param {string} options.text    - Plaintext fallback body.
  * @param {string} [options.html]  - Optional HTML body (takes priority if provided).
  *
- * @throws Will throw if SMTP transport fails — callers should wrap in try/catch.
+ * @throws Will throw if transport fails — callers should wrap in try/catch.
  */
 const sendEmail = async ({ to, subject, text, html }) => {
+  // If Resend API Key is provided, use Resend HTTP API to bypass Render SMTP block
+  if (process.env.RESEND_API_KEY) {
+    return new Promise((resolve, reject) => {
+      const data = JSON.stringify({
+        from: process.env.RESEND_FROM || 'Akanni Studios <onboarding@resend.dev>',
+        to,
+        subject,
+        text,
+        ...(html && { html }),
+      });
+
+      const options = {
+        hostname: 'api.resend.com',
+        port: 443,
+        path: '/emails',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Length': data.length,
+        },
+      };
+
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(JSON.parse(body));
+          } else {
+            reject(new Error(`Resend API returned status ${res.statusCode}: ${body}`));
+          }
+        });
+      });
+
+      req.on('error', (err) => { reject(err); });
+      req.write(data);
+      req.end();
+    });
+  }
+
+  // Fallback to standard SMTP
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -42,7 +84,7 @@ const sendEmail = async ({ to, subject, text, html }) => {
   const info = await transporter.sendMail(mailOptions);
 
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[MAIL] Message sent: ${info.messageId} → ${to}`);
+    console.log(`[MAIL] Message sent via SMTP: ${info.messageId} → ${to}`);
   }
 
   return info;
