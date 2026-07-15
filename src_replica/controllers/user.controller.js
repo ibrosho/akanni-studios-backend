@@ -213,7 +213,7 @@ const loginUser = async (req, res, next) => {
     }
 
     // Issue JWT and set httpOnly cookie
-    generateToken(user._id, res);
+    const token = generateToken(user._id, res);
 
     // Audit local login success
     await logActivity(user._id, 'LOGIN_LOCAL', req);
@@ -221,6 +221,7 @@ const loginUser = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: 'Credentials verified successfully.',
+      token,
       user: {
         _id: user._id,
         name: user.name,
