@@ -3,8 +3,8 @@ const https = require('https');
 
 /**
  * @util sendEmail
- * @description Reusable email dispatcher. Supports Resend HTTP API (for Render production)
- * and Nodemailer SMTP (for localhost/fallback).
+ * @description Reusable email dispatcher. Supports Brevo REST API (free emails to anyone on Render),
+ * Resend HTTP API (for testing), and Nodemailer SMTP (local fallback).
  *
  * @param {Object} options
  * @param {string} options.to      - Recipient email address.
@@ -15,7 +15,51 @@ const https = require('https');
  * @throws Will throw if transport fails — callers should wrap in try/catch.
  */
 const sendEmail = async ({ to, subject, text, html }) => {
-  // If Resend API Key is provided, use Resend HTTP API to bypass Render SMTP block
+  // Option 1: Brevo REST API (Allows sending to ANY recipient for free without a custom domain)
+  if (process.env.BREVO_API_KEY) {
+    return new Promise((resolve, reject) => {
+      const data = JSON.stringify({
+        sender: { 
+          name: process.env.SMTP_FROM_NAME || 'Akanni Studios', 
+          email: process.env.SMTP_USER || 'ibrosho@gmail.com' 
+        },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html || text,
+        textContent: text
+      });
+
+      const options = {
+        hostname: 'api.brevo.com',
+        port: 443,
+        path: '/v3/smtp/email',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Length': data.length,
+        },
+      };
+
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(JSON.parse(body));
+          } else {
+            reject(new Error(`Brevo API returned status ${res.statusCode}: ${body}`));
+          }
+        });
+      });
+
+      req.on('error', (err) => { reject(err); });
+      req.write(data);
+      req.end();
+    });
+  }
+
+  // Option 2: Resend HTTP API
   if (process.env.RESEND_API_KEY) {
     return new Promise((resolve, reject) => {
       const data = JSON.stringify({
