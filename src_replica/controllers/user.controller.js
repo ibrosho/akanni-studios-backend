@@ -247,11 +247,13 @@ const logoutUser = async (req, res, next) => {
   try {
     const userId = req.user._id;
 
+    const isProd = process.env.NODE_ENV === 'production';
+
     res.cookie('token', '', {
       httpOnly: true,
       expires: new Date(0), // Immediately expired
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
     });
 
     // Audit logout action

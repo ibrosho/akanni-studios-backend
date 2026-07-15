@@ -26,10 +26,12 @@ const generateToken = (id, res) => {
     return isNaN(days) ? 7 * 24 * 60 * 60 * 1000 : days * 24 * 60 * 60 * 1000;
   };
 
+  const isProd = process.env.NODE_ENV === 'production';
+
   res.cookie('token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProd, // Must be secure (HTTPS) in production for SameSite=None
+    sameSite: isProd ? 'none' : 'lax', // Use 'none' for cross-domain cookie auth, 'lax' for local dev
     maxAge: daysToMs(expiresIn),
   });
 
