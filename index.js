@@ -29,9 +29,27 @@ app.use(helmet());
 // CORS — Restrict to configured frontend origin with credential support
 // Required for httpOnly cookie auth to work cross-origin
 // ─────────────────────────────────────────────────────────────────────────────
+
+// CORS — Restrict to configured frontend origin with credential support
+// Required for httpOnly cookie auth to work cross-origin
+
+const allowedOrigins = [
+  'https://akanni-studio.vercel.app', // Your live Vercel frontend
+  'http://localhost:5173'             // Your local development frontend
+];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like Postman or mobile apps)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true, // Allow cookies to be sent/received
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -40,7 +58,7 @@ app.use(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Request Logging — Dev: colorized, Production: combined Apache format
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ─────────────────────────────────────────────────────────────────────────────
