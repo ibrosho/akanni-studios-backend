@@ -35,8 +35,9 @@ app.use(helmet());
 
 const allowedOrigins = [
   'https://akanni-studio.vercel.app', // Your live Vercel frontend
-  'http://localhost:5173'             // Your local development frontend
-];
+  'http://localhost:5173',             // Your local development frontend
+  process.env.FRONTEND_URL
+].filter(Boolean);
 
 app.use(
   cors({
@@ -44,9 +45,14 @@ app.use(
       // Allow requests with no origin (like Postman or mobile apps)
       if (!origin) return callback(null, true);
       
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      const isAllowed = allowedOrigins.includes(origin) || 
+                        origin.endsWith('.vercel.app') ||
+                        /^https?:\/\/localhost(:\d+)?$/.test(origin);
+
+      if (isAllowed) {
         callback(null, true);
       } else {
+        console.warn(`Blocked by CORS: ${origin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
