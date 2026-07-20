@@ -332,19 +332,19 @@ const updateProfile = async (req, res, next) => {
 
     // Handle profile photo upload (via Multer)
     if (req.file) {
-      // Delete the old photo from disk if it exists and isn't a default/external URL
-      if (user.profilePhoto && user.profilePhoto.startsWith('/uploads/')) {
-        const oldPhotoPath = path.join(
-          __dirname,
-          '../../',
-          user.profilePhoto.replace(/^\//, '')
-        );
-        if (fs.existsSync(oldPhotoPath)) {
-          fs.unlinkSync(oldPhotoPath);
-        }
+      // Clean up local temp file if created
+      const filePath = req.file.path;
+      if (filePath && fs.existsSync(filePath)) {
+        const fileBuffer = fs.readFileSync(filePath);
+        const mimeType = req.file.mimetype || 'image/jpeg';
+        // Store as Base64 Data URI in MongoDB for 100% cloud persistence across Render server restarts
+        user.profilePhoto = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+        try {
+          fs.unlinkSync(filePath); // Clean up temp disk file
+        } catch (_err) {}
       }
-      // Store the relative URL path for the new photo
-      user.profilePhoto = `/uploads/profiles/${req.file.filename}`;
+    } else if (req.body.deletePhoto === 'true') {
+      user.profilePhoto = '';
     }
 
     const updatedUser = await user.save();
