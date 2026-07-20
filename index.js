@@ -23,7 +23,9 @@ const app = express();
 // Security Headers — Helmet sets 14 HTTP response headers by default
 // (e.g. X-Content-Type-Options, X-Frame-Options, Strict-Transport-Security)
 // ─────────────────────────────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CORS — Restrict to configured frontend origin with credential support
