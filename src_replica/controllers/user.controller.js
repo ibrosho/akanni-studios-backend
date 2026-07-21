@@ -482,7 +482,10 @@ const forgotPassword = async (req, res, next) => {
     user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
     await user.save();
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${rawResetToken}`;
+    const frontendBase = (req.headers.origin && !req.headers.origin.includes('localhost')) 
+      ? req.headers.origin 
+      : (process.env.FRONTEND_URL || 'https://akanni-studio.vercel.app');
+    const resetUrl = `${frontendBase}/reset-password/${rawResetToken}`;
 
     try {
       await sendEmail({
